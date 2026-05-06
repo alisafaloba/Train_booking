@@ -1,7 +1,6 @@
 package com.alisafaloba.trainbooking.Domain;
 
 import jakarta.persistence.*;
-
 import java.time.LocalDateTime;
 
 @Entity
@@ -11,13 +10,15 @@ public class Booking {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String customerEmail;
+    @ManyToOne
+    @JoinColumn(name = "user_id")
+    private User customer;
 
     private int numberOfSeats;
 
     @ManyToOne
-    @JoinColumn(name = "train_id")
-    private Train train;
+    @JoinColumn(name = "route_id")
+    private Route route;
 
     @ManyToOne
     @JoinColumn(name = "departure_station_id")
@@ -31,10 +32,10 @@ public class Booking {
 
     public Booking() {}
 
-    public Booking(String customerEmail, int numberOfSeats, Train train, Station departureStation, Station arrivalStation) {
-        this.customerEmail = customerEmail;
+    public Booking(User customer, int numberOfSeats, Route route, Station departureStation, Station arrivalStation) {
+        this.customer = customer;
         this.numberOfSeats = numberOfSeats;
-        this.train = train;
+        this.route = route;
         this.departureStation = departureStation;
         this.arrivalStation = arrivalStation;
         this.bookingTime = LocalDateTime.now();
@@ -48,12 +49,12 @@ public class Booking {
         this.id = id;
     }
 
-    public String getCustomerEmail() {
-        return customerEmail;
+    public User getCustomer() {
+        return customer;
     }
 
-    public void setCustomerEmail(String customerEmail) {
-        this.customerEmail = customerEmail;
+    public void setCustomer(User customer) {
+        this.customer = customer;
     }
 
     public int getNumberOfSeats() {
@@ -64,12 +65,12 @@ public class Booking {
         this.numberOfSeats = numberOfSeats;
     }
 
-    public Train getTrain() {
-        return train;
+    public Route getRoute() {
+        return route;
     }
 
-    public void setTrain(Train train) {
-        this.train = train;
+    public void setRoute(Route route) {
+        this.route = route;
     }
 
     public Station getDepartureStation() {
