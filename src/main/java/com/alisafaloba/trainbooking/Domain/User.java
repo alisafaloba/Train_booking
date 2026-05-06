@@ -1,9 +1,6 @@
 package com.alisafaloba.trainbooking.Domain;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
+import jakarta.persistence.*;
 
 @Entity
 public class User {
@@ -14,11 +11,12 @@ public class User {
 
     private String email;
 
-    private String role; // ADMIN / CUSTOMER
+    @Enumerated(EnumType.STRING)
+    private Role role;
 
     public User() {}
 
-    public User(String email, String role) {
+    public User(String email, Role role) {
         this.email = email;
         this.role = role;
     }
@@ -39,11 +37,11 @@ public class User {
         this.email = email;
     }
 
-    public String getRole() {
+    public Role getRole() {
         return role;
     }
 
-    public void setRole(String role) {
+    public void setRole(Role role) {
         this.role = role;
     }
 }
