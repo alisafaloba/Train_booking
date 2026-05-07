@@ -14,7 +14,6 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
 
     @Query("SELECT COALESCE(SUM(b.numberOfSeats), 0) FROM Booking b WHERE b.route = :route")
     int sumBookedSeatsByRoute(@Param("route") Route route);
-
-
     List<Booking> findByRouteTrain(Train train);
+    List<Booking> findByCustomerId(Long customerId);
 }
