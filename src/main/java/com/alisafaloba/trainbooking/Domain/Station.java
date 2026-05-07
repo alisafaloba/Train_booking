@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 @Entity
 public class Station {
 
@@ -13,6 +15,7 @@ public class Station {
 
     private String name;
 
+    @JsonIgnore
     @OneToMany(mappedBy = "station")
     private List<RouteStation> routeStations;
 

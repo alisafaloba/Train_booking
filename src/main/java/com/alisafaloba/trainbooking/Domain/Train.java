@@ -3,6 +3,7 @@ package com.alisafaloba.trainbooking.Domain;
 import jakarta.persistence.*;
 
 import java.util.List;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 @Entity
 public class Train {
@@ -18,6 +19,7 @@ public class Train {
     private boolean delayed;
 
     @OneToMany(mappedBy = "train")
+    @JsonIgnore
     private List<Route> routes;
 
     public Train() {}
