@@ -3,6 +3,8 @@ package com.alisafaloba.trainbooking.Config;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import static org.springframework.security.config.Customizer.withDefaults;
 
@@ -12,24 +14,24 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-                // 1. Disable CSRF so we can send POST requests from Postman
-                .csrf(csrf -> csrf.disable())
-
-                // 2. Allow the H2 console to load in the browser (disables frame-busting)
-                .headers(headers -> headers.frameOptions(frame -> frame.disable()))
-
-                // 3. Configure access rules
+                .csrf(csrf -> csrf.disable()) // Keep this disabled for Postman testing
+                .headers(headers -> headers.frameOptions(frame -> frame.disable())) // For H2 console access
                 .authorizeHttpRequests(auth -> auth
-                        // Let anyone access the H2 console without logging in
                         .requestMatchers("/h2-console/**").permitAll()
-
-                        // All other API requests require Basic Authentication
+                        // Lock down Admin endpoints to ONLY the Admin role
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        // All other endpoints can be accessed by anyone who is logged in
                         .anyRequest().authenticated()
                 )
-
-                // 4. Enable HTTP Basic Authentication for Postman
                 .httpBasic(withDefaults());
 
         return http.build();
+    }
+
+    // We must expose the PasswordEncoder as a Bean so Spring Security
+    // knows how to check the passwords during login
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
     }
 }
