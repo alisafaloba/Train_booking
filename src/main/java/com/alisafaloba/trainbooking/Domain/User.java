@@ -12,13 +12,18 @@ public class User {
 
     private String email;
 
+    // --- NEW FIELD ---
+    private String password;
+
     @Enumerated(EnumType.STRING)
     private Role role;
 
     public User() {}
 
-    public User(String email, Role role) {
+    // --- UPDATED CONSTRUCTOR ---
+    public User(String email, String password, Role role) {
         this.email = email;
+        this.password = password;
         this.role = role;
     }
 
@@ -36,6 +41,15 @@ public class User {
 
     public void setEmail(String email) {
         this.email = email;
+    }
+
+    // --- NEW GETTER & SETTER ---
+    public String getPassword() {
+        return password;
+    }
+
+    public void setPassword(String password) {
+        this.password = password;
     }
 
     public Role getRole() {
