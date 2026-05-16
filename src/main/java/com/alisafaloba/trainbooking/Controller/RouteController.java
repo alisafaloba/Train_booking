@@ -41,6 +41,7 @@ public class RouteController {
         }
 
         // 3. Appropriate error message if no link exists
-        return ResponseEntity.badRequest().body("No possible link found between the selected stations.");
+
+        return ResponseEntity.badRequest().body(java.util.Map.of("error", "No possible link found between the selected stations."));
     }
 }

@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>My Bookings</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-success shadow mb-4">
+    <div class="container">
+        <a class="navbar-brand" href="/">← Back to Menu</a>
+    </div>
+</nav>
+
+<div class="container">
+    <div class="card shadow-sm p-4">
+        <h2 class="mb-4 text-success border-bottom pb-2">My Booked Itineraries</h2>
+
+        <div id="ticketsDisplay">
+            <div id="loadingSpinner" class="text-center my-4">
+                <div class="spinner-border text-success" role="status"></div>
+                <p class="mt-2 text-muted">Retrieving your tickets...</p>
+            </div>
+
+            <table class="table table-hover align-middle d-none" id="ticketsTable">
+                <thead class="table-dark">
+                <tr>
+                    <th>Ref #</th>
+                    <th>Train Service</th>
+                    <th>Departure</th>
+                    <th>Arrival</th>
+                    <th>Seats</th>
+                    <th>Status</th>
+                </tr>
+                </thead>
+                <tbody id="ticketsBody"></tbody>
+            </table>
+
+            <div id="fallbackMessage" class="alert alert-info d-none text-center"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Helper to format Spring Boot time arrays into standard clock time
+    function formatTime(dateTimeInput) {
+        if (!dateTimeInput) return '--:--';
+        let dateObj;
+        if (Array.isArray(dateTimeInput)) {
+            dateObj = new Date(dateTimeInput[0], dateTimeInput[1] - 1, dateTimeInput[2], dateTimeInput[3], dateTimeInput[4]);
+        } else {
+            dateObj = new Date(dateTimeInput);
+        }
+        return dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+
+    // Automatically load tickets as soon as the page is ready
+    document.addEventListener("DOMContentLoaded", function() {
+        loadTickets();
+    });
+
+    function loadTickets() {
+        const table = document.getElementById('ticketsTable');
+        const tbody = document.getElementById('ticketsBody');
+        const fallback = document.getElementById('fallbackMessage');
+        const spinner = document.getElementById('loadingSpinner');
+
+        // Note the URL no longer needs an ID appended to it!
+        fetch(`/api/bookings/my-tickets`)
+            .then(res => res.json().then(data => ({ ok: res.ok, body: data, status: res.status })))
+            .then(resObj => {
+                spinner.classList.add('d-none');
+                tbody.innerHTML = "";
+
+                // Handle the case where the user has no tickets (Message mapped from backend)
+                if(resObj.body.message) {
+                    table.classList.add('d-none');
+                    fallback.classList.remove('d-none');
+                    fallback.innerText = resObj.body.message;
+                    return;
+                }
+
+                // Handle backend errors
+                if (!resObj.ok) {
+                    table.classList.add('d-none');
+                    fallback.classList.remove('d-none');
+                    fallback.classList.replace('alert-info', 'alert-danger');
+                    fallback.innerText = resObj.body.error || "Failed to load bookings.";
+                    return;
+                }
+
+                fallback.classList.add('d-none');
+                table.classList.remove('d-none');
+
+                resObj.body.forEach(bk => {
+                    const depStation = bk.departureStation ? bk.departureStation.name : 'Unknown';
+                    const arrStation = bk.arrivalStation ? bk.arrivalStation.name : 'Unknown';
+                    const trainName = (bk.route && bk.route.train) ? bk.route.train.name : 'Standard Train';
+
+                    let depTime = '--:--';
+                    let arrTime = '--:--';
+
+                    // Dig into the routeStations to find the exact times for the booked stations
+                    if (bk.route && bk.route.routeStations) {
+                        const depRaw = bk.route.routeStations.find(rs => rs.station.id === bk.departureStation.id)?.departureTime;
+                        const arrRaw = bk.route.routeStations.find(rs => rs.station.id === bk.arrivalStation.id)?.arrivalTime;
+
+                        depTime = formatTime(depRaw);
+                        arrTime = formatTime(arrRaw);
+                    }
+
+                    tbody.innerHTML += `
+                    <tr>
+                        <td><strong>#${bk.id}</strong></td>
+                        <td><span class="badge bg-secondary">🚆 ${trainName}</span></td>
+                        <td>
+                            <strong class="text-dark">${depStation}</strong><br>
+                            <small class="text-success fw-bold">🕒 ${depTime}</small>
+                        </td>
+                        <td>
+                            <strong class="text-dark">${arrStation}</strong><br>
+                            <small class="text-danger fw-bold">🕒 ${arrTime}</small>
+                        </td>
+                        <td>${bk.seats}</td>
+                        <td><span class="badge bg-success">Confirmed Active</span></td>
+                    </tr>`;
+                });
+            }).catch(() => {
+            spinner.classList.add('d-none');
+            table.classList.add('d-none');
+            fallback.classList.remove('d-none');
+            fallback.classList.replace('alert-info', 'alert-danger');
+            fallback.innerText = "Network error. Could not connect to the booking server.";
+        });
+    }
+</script>
+</body>
+</html>

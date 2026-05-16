@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-danger shadow mb-4">
+    <div class="container">
+        <a class="navbar-brand fw-bold" href="/">Infrastructure Control Panel</a>
+    </div>
+</nav>
+
+<div class="container">
+    <div class="row g-4 text-center">
+        <div class="col-md-4">
+            <div class="card p-4 shadow-sm border-0">
+                <h4> Fleet Deployment</h4>
+                <p class="text-muted small">Update train counts, change carrying capacity metrics, or deploy delay flags.</p>
+                <a href="/admin/manage-trains" class="btn btn-danger">Modify Fleets</a>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card p-4 shadow-sm border-0">
+                <h4> Station Logistics</h4>
+                <p class="text-muted small">Register layout node additions or clean redundant terminal names from listings.</p>
+                <a href="/admin/manage-stations" class="btn btn-danger">Manage Hubs</a>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card p-4 shadow-sm border-0">
+                <h4>📋 Quick Action Center</h4>
+                <div class="form-group text-start mb-2">
+                    <label class="form-label small fw-bold">Train Delay Dispatcher</label>
+                    <div class="input-group input-group-sm">
+                        <input type="number" id="delayTrainId" class="form-control" placeholder="Train ID">
+                        <button class="btn btn-warning" onclick="broadcastDelay()">Flag Delay</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function broadcastDelay() {
+        const tId = document.getElementById('delayTrainId').value;
+        if(!tId) return alert("Provide target train reference sequence");
+
+        fetch(`/api/admin/trains/${tId}/delay`, { method: 'POST' })
+            .then(res => {
+                if(res.ok) alert(" Notice broadcasted successfully to affected passengers.");
+                else alert("Target sequence invalid or missing.");
+            });
+    }
+</script>
+</body>
+</html>

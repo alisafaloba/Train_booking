@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="">
+<head>
+    <meta charset="UTF-8">
+    <title>Logging Out...</title>
+    <script>
+        // Force clear browser basic auth cache by sending a request with bad credentials
+        var xmlhttp = new XMLHttpRequest();
+        xmlhttp.open("GET", "/api/bookings", true, "logout", "logout");
+        xmlhttp.send();
+
+        xmlhttp.onreadystatechange = function() {
+            // Once processed, send the user back to the main login prompt
+            window.location.href = "/";
+        }
+    </script>
+</head>
+<body>
+<div style="text-align: center; margin-top: 50px; font-family: sans-serif;">
+    <h3>Clearing user context security token...</h3>
+    <p>Please wait a moment.</p>
+</div>
+</body>
+</html>

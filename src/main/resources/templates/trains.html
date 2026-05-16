@@ -1,58 +1,91 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html xmlns:th="http://www.thymeleaf.org" lang="">
 <head>
     <meta charset="UTF-8">
-    <title>Available Trains</title>
+    <title>Manage Fleet</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body class="bg-light">
 
-<nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+<nav class="navbar navbar-expand-lg navbar-dark bg-danger shadow mb-4">
     <div class="container">
-        <a class="navbar-brand" href="/">TrainBooking</a>
-        <div class="collapse navbar-collapse">
-            <ul class="navbar-nav ms-auto">
-                <li class="nav-item">
-                    <a class="nav-link" href="/view-trains">View Trains</a>
-                </li>
-            </ul>
-        </div>
+        <a class="navbar-brand" href="/admin/dashboard">← Back to Admin Console</a>
     </div>
 </nav>
 
-<div class="container mt-5">
-    <h2 class="mb-4">All Trains in the System</h2>
+<div class="container">
+    <h2 class="mb-4 text-danger border-bottom pb-2"> Fleet Deployment & Live Capacity</h2>
 
-    <div class="card shadow-sm">
-        <div class="card-body">
-            <table class="table table-hover table-striped">
-                <thead class="table-dark">
-                <tr>
-                    <th>Train ID</th>
-                    <th>Name</th>
-                    <th>Capacity</th>
-                    <th>Status</th>
-                </tr>
-                </thead>
-                <tbody>
-                <tr th:each="train : ${trains}">
-                    <td th:text="${train.id}">1</td>
-                    <td th:text="${train.name}">Express Train</td>
-                    <td th:text="${train.capacity}">100</td>
-                    <td>
-                        <span th:if="${train.delayed}" class="badge bg-danger">Delayed</span>
-                        <span th:unless="${train.delayed}" class="badge bg-success">On Time</span>
-                    </td>
-                </tr>
-                </tbody>
-            </table>
+    <div class="card shadow-sm p-4">
+        <table class="table align-middle table-hover">
+            <thead class="table-dark">
+            <tr>
+                <th>Train ID</th>
+                <th>Train Designation</th>
+                <th>Total Capacity</th>
+                <th>Live Occupancy</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="train : ${trains}">
+                <td><strong th:text="'#' + ${train.id}">#1</strong></td>
+                <td th:text="${train.name}">Flying Scotsman</td>
+                <td th:text="${train.capacity}" th:id="'capacity-' + ${train.id}">200</td>
+                <td>
+                    <button class="btn btn-sm btn-outline-danger" th:onclick="'checkCapacity(' + ${train.id} + ')'">
+                        Inspect Manifest
+                    </button>
+                    <span th:id="'live-stats-' + ${train.id}" class="ms-3 fw-bold text-secondary"></span>
+                </td>
+            </tr>
+            </tbody>
+        </table>
 
-            <div th:if="${#lists.isEmpty(trains)}" class="alert alert-warning text-center mt-3">
-                No trains are currently available in the database.
-            </div>
+        <div th:if="${#lists.isEmpty(trains)}" class="alert alert-warning mt-3 text-center">
+            No trains registered in the fleet.
         </div>
     </div>
 </div>
 
+<script>
+    function checkCapacity(trainId) {
+        const statsSpan = document.getElementById(`live-stats-${trainId}`);
+        const maxCapacity = parseInt(document.getElementById(`capacity-${trainId}`).innerText);
+
+        statsSpan.innerHTML = '<span class="spinner-border spinner-border-sm text-danger" role="status"></span> Calculating...';
+
+        fetch(`/api/admin/trains/${trainId}/bookings`)
+            .then(res => res.json().then(data => ({ ok: res.ok, body: data })))
+            .then(resObj => {
+                // FIXED 1: Check for the JSON map message we created in the controller
+                if (resObj.body && resObj.body.message) {
+                    statsSpan.innerHTML = `<span class="text-success">0 / ${maxCapacity} Booked (${maxCapacity} seats available)</span>`;
+                    return;
+                }
+
+                if (resObj.ok && Array.isArray(resObj.body)) {
+                    // FIXED 2: Handle any possible variable name for your seat count to prevent "undefined" math errors
+                    const seatsTaken = resObj.body.reduce((sum, booking) => {
+                        const bookedSeats = booking.seats || booking.numberOfSeats || booking.seatCount || booking.quantity || 0;
+                        return sum + bookedSeats;
+                    }, 0);
+
+                    const available = maxCapacity - seatsTaken;
+
+                    let colorClass = "text-success";
+                    if (available <= 0) colorClass = "text-danger";
+                    else if (available < maxCapacity * 0.2) colorClass = "text-warning";
+
+                    statsSpan.innerHTML = `<span class="${colorClass}">${seatsTaken} / ${maxCapacity} Booked (${available} seats available)</span>`;
+                } else {
+                    statsSpan.innerHTML = `<span class="text-danger">Failed to parse manifest data</span>`;
+                }
+            })
+            .catch((error) => {
+                console.error("Fetch error:", error);
+                statsSpan.innerHTML = `<span class="text-danger">Server connection error</span>`;
+            });
+    }
+</script>
 </body>
 </html>

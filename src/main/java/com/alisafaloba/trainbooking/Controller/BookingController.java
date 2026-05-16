@@ -12,7 +12,9 @@ import com.alisafaloba.trainbooking.Service.BookingService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/bookings")
@@ -33,42 +35,57 @@ public class BookingController {
         this.bookingRepository = bookingRepository;
     }
 
-    // A simple DTO to receive JSON data cleanly
-    public record BookingRequest(Long userId, Long routeId, Long departureStationId, Long arrivalStationId, int seats) {}
+    // 1. Create a sub-record to hold specific details for each train leg
+    public record LegRequest(Long routeId, Long departureStationId, Long arrivalStationId) {}
+
+    // 2. The main request now takes a List of these legs
+    public record BookingRequest(List<LegRequest> legs, int seats) {}
 
     @PostMapping
-    public ResponseEntity<?> bookTicket(@RequestBody BookingRequest request) {
+    public ResponseEntity<?> bookTicket(@RequestBody BookingRequest request, java.security.Principal principal) {
         try {
-            User user = userRepository.findById(request.userId())
-                    .orElseThrow(() -> new IllegalArgumentException("User not found"));
-            Route route = routeRepository.findById(request.routeId())
-                    .orElseThrow(() -> new IllegalArgumentException("Route not found"));
-            Station departure = stationRepository.findById(request.departureStationId())
-                    .orElseThrow(() -> new IllegalArgumentException("Departure station not found"));
-            Station arrival = stationRepository.findById(request.arrivalStationId())
-                    .orElseThrow(() -> new IllegalArgumentException("Arrival station not found"));
+            if (principal == null) {
+                return ResponseEntity.status(401).body(Map.of("error", "You must be logged in to book tickets."));
+            }
 
-            Booking booking = bookingService.bookTicket(user, route, departure, arrival, request.seats());
-            return ResponseEntity.ok(booking);
+            User user = userRepository.findByEmail(principal.getName())
+                    .orElseThrow(() -> new IllegalArgumentException("User profile not found"));
 
-        } catch (IllegalStateException e) {
-            // Catches the overbooking error from the service layer[cite: 1, 2]
-            return ResponseEntity.badRequest().body(e.getMessage());
+            List<Booking> confirmedBookings = new ArrayList<>();
+
+            // 3. Loop through each leg and use its SPECIFIC departure/arrival stations
+            for (LegRequest leg : request.legs()) {
+                Route route = routeRepository.findById(leg.routeId())
+                        .orElseThrow(() -> new IllegalArgumentException("Route not found"));
+                Station departure = stationRepository.findById(leg.departureStationId())
+                        .orElseThrow(() -> new IllegalArgumentException("Departure station not found"));
+                Station arrival = stationRepository.findById(leg.arrivalStationId())
+                        .orElseThrow(() -> new IllegalArgumentException("Arrival station not found"));
+
+                Booking booking = bookingService.bookTicket(user, route, departure, arrival, request.seats());
+                confirmedBookings.add(booking);
+            }
+
+            return ResponseEntity.ok(confirmedBookings);
+
+        } catch (IllegalStateException | IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
-
     }
-    @GetMapping("/my-tickets/{userId}")
-    public ResponseEntity<?> getUserBookings(@PathVariable Long userId) {
-        // Verify the user exists first
-        if (!userRepository.existsById(userId)) {
-            return ResponseEntity.badRequest().body("User not found.");
+
+    @GetMapping("/my-tickets")
+    public ResponseEntity<?> getUserBookings(java.security.Principal principal) {
+        if (principal == null) {
+            return ResponseEntity.status(401).body(Map.of("error", "You must be logged in to view tickets."));
         }
 
-        // Fetch and return their bookings
-        List<Booking> myBookings = bookingRepository.findByCustomerId(userId);
+        User user = userRepository.findByEmail(principal.getName())
+                .orElseThrow(() -> new IllegalArgumentException("User profile not found."));
+
+        List<Booking> myBookings = bookingRepository.findByCustomerId(user.getId());
 
         if (myBookings.isEmpty()) {
-            return ResponseEntity.ok("You have no upcoming trips.");
+            return ResponseEntity.ok(Map.of("message", "You have no upcoming trips."));
         }
 
         return ResponseEntity.ok(myBookings);

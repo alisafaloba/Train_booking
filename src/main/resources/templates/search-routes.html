@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="">
+<head>
+    <meta charset="UTF-8">
+    <title>Search Routes</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-success shadow mb-4">
+    <div class="container">
+        <a class="navbar-brand" href="/">← Back to Main Menu</a>
+    </div>
+</nav>
+
+<div class="container">
+    <div class="card shadow-sm p-4 mb-4">
+        <h2 class="text-success mb-4">Find Your Route</h2>
+        <form id="searchForm" class="row g-3">
+            <div class="col-md-4">
+                <label class="form-label fw-bold">Departure Station</label>
+                <select id="departureId" class="form-select" required>
+                    <option value="">Choose...</option>
+                    <option th:each="st : ${stations}" th:value="${st.id}" th:text="${st.name}"></option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label fw-bold">Arrival Station</label>
+                <select id="arrivalId" class="form-select" required>
+                    <option value="">Choose...</option>
+                    <option th:each="st : ${stations}" th:value="${st.id}" th:text="${st.name}"></option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label fw-bold">Seats</label>
+                <input type="number" id="seats" class="form-control" value="1" min="1" required>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-success w-100">Find Matches</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="card shadow-sm p-4 d-none" id="resultsCard">
+        <h3 class="mb-3 border-bottom pb-2">Available Journeys</h3>
+        <div id="resultsWrapper"></div>
+    </div>
+</div>
+
+<script>
+    function formatTime(dateTimeInput) {
+        if (!dateTimeInput) return '--:--';
+        let dateObj;
+        if (Array.isArray(dateTimeInput)) {
+            dateObj = new Date(dateTimeInput[0], dateTimeInput[1] - 1, dateTimeInput[2], dateTimeInput[3], dateTimeInput[4]);
+        } else {
+            dateObj = new Date(dateTimeInput);
+        }
+        return dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+
+    document.getElementById('searchForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const depSelect = document.getElementById('departureId');
+        const arrSelect = document.getElementById('arrivalId');
+
+        const depId = parseInt(depSelect.value);
+        const arrId = parseInt(arrSelect.value);
+
+        const depName = depSelect.options[depSelect.selectedIndex].text;
+        const arrName = arrSelect.options[arrSelect.selectedIndex].text;
+
+        const resultsCard = document.getElementById('resultsCard');
+        const wrapper = document.getElementById('resultsWrapper');
+
+        fetch(`/api/routes/search?departureId=${depId}&arrivalId=${arrId}`)
+            .then(res => res.json().then(data => ({ status: res.status, body: data })))
+            .then(resObj => {
+                resultsCard.classList.remove('d-none');
+                wrapper.innerHTML = "";
+
+                if (resObj.status !== 200) {
+                    const errorMessage = resObj.body.error || 'No routes found.';
+                    wrapper.innerHTML = `<div class="alert alert-danger">${errorMessage}</div>`;
+                    return;
+                }
+
+                resObj.body.forEach(route => {
+                    const isChangeover = route.firstLeg !== undefined;
+                    let htmlContent = '';
+
+                    if (isChangeover) {
+                        const routeId1 = route.firstLeg.id;
+                        const routeId2 = route.secondLeg.id;
+                        const train1 = route.firstLeg.train ? route.firstLeg.train.name : 'Train 1';
+                        const train2 = route.secondLeg.train ? route.secondLeg.train.name : 'Train 2';
+
+                        const transferStation = route.transferStation;
+                        const changeStationName = transferStation ? transferStation.name : 'Connecting Point';
+                        const transferId = transferStation ? transferStation.id : null;
+
+                        const leg1DepTime = route.firstLeg.routeStations.find(rs => rs.station.id === depId)?.departureTime;
+                        const leg1ArrTime = route.firstLeg.routeStations.find(rs => rs.station.id === transferStation.id)?.arrivalTime;
+                        const leg2DepTime = route.secondLeg.routeStations.find(rs => rs.station.id === transferStation.id)?.departureTime;
+                        const leg2ArrTime = route.secondLeg.routeStations.find(rs => rs.station.id === arrId)?.arrivalTime;
+
+                        htmlContent = `
+                        <div class="border border-warning rounded p-3 mb-4 bg-white shadow-sm position-relative">
+                            <span class="position-absolute top-0 start-50 translate-middle badge rounded-pill bg-warning text-dark">
+                                1 Changeover
+                            </span>
+                            <div class="row align-items-center mt-3 text-center">
+                                <div class="col-md-3">
+                                    <h5 class="mb-0 text-dark">${depName}</h5>
+                                    <small class="text-muted">🚆 ${train1}</small><br>
+                                    <span class="badge bg-light text-dark border mt-2">🕒 Dep: ${formatTime(leg1DepTime)}</span>
+                                </div>
+                                <div class="col-md-4 text-warning fw-bold">
+                                    <small class="text-dark">Change at <strong>${changeStationName}</strong></small><br>
+                                    <div class="text-muted small mt-1 mb-1">
+                                        Arr: ${formatTime(leg1ArrTime)} &nbsp;|&nbsp; Dep: ${formatTime(leg2DepTime)}
+                                    </div>
+
+                                </div>
+                                <div class="col-md-3">
+                                    <h5 class="mb-0 text-dark">${arrName}</h5>
+                                    <small class="text-muted"> ${train2}</small><br>
+                                    <span class="badge bg-light text-dark border mt-2">🕒 Arr: ${formatTime(leg2ArrTime)}</span>
+                                </div>
+                                <div class="col-md-2 text-end">
+                                    <button class="btn btn-warning fw-bold w-100" onclick="bookChangeover(${routeId1}, ${routeId2}, ${transferId})">Book</button>
+                                </div>
+                            </div>
+                        </div>`;
+                    } else {
+                        const routeId = route.id;
+                        const trainName = route.train ? route.train.name : 'Direct Train';
+
+                        const depTime = route.routeStations.find(rs => rs.station.id === depId)?.departureTime;
+                        const arrTime = route.routeStations.find(rs => rs.station.id === arrId)?.arrivalTime;
+
+                        htmlContent = `
+                        <div class="border border-success rounded p-3 mb-4 bg-white shadow-sm position-relative">
+                            <span class="position-absolute top-0 start-50 translate-middle badge rounded-pill bg-success">
+                                Direct Route
+                            </span>
+                            <div class="row align-items-center mt-3 text-center">
+                                <div class="col-md-4">
+                                    <h5 class="mb-0 text-dark">${depName}</h5>
+                                    <span class="badge bg-light text-dark border mt-2">🕒 Dep: ${formatTime(depTime)}</span>
+                                </div>
+                                <div class="col-md-2 text-success fw-bold">
+                                    ━━━━━━━━━
+                                </div>
+                                <div class="col-md-4">
+                                    <h5 class="mb-0 text-dark">${arrName}</h5>
+                                    <small class="text-muted">🚆 ${trainName}</small><br>
+                                    <span class="badge bg-light text-dark border mt-2">🕒 Arr: ${formatTime(arrTime)}</span>
+                                </div>
+                                <div class="col-md-2 text-end">
+                                    <button class="btn btn-success fw-bold w-100" onclick="bookDirect(${routeId})">Book</button>
+                                </div>
+                            </div>
+                        </div>`;
+                    }
+                    wrapper.innerHTML += htmlContent;
+                });
+            });
+    });
+
+    // Submits a single leg
+    function bookDirect(routeId) {
+        const depId = parseInt(document.getElementById('departureId').value);
+        const arrId = parseInt(document.getElementById('arrivalId').value);
+
+        sendBookingRequest([{
+            routeId: routeId,
+            departureStationId: depId,
+            arrivalStationId: arrId
+        }]);
+    }
+
+    // Submits two distinct legs with proper start/end stations for each
+    function bookChangeover(routeId1, routeId2, transferStationId) {
+        const depId = parseInt(document.getElementById('departureId').value);
+        const arrId = parseInt(document.getElementById('arrivalId').value);
+
+        sendBookingRequest([
+            {
+                routeId: routeId1,
+                departureStationId: depId,
+                arrivalStationId: transferStationId
+            },
+            {
+                routeId: routeId2,
+                departureStationId: transferStationId,
+                arrivalStationId: arrId
+            }
+        ]);
+    }
+
+    // Handles the actual API call
+    function sendBookingRequest(legsArray) {
+        const bookingPayload = {
+            legs: legsArray,
+            seats: parseInt(document.getElementById('seats').value)
+        };
+
+        fetch('/api/bookings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(bookingPayload)
+        })
+            .then(res => res.json().then(data => ({ ok: res.ok, body: data })))
+            .then(resObj => {
+                if (resObj.ok) {
+                    alert(`🎉 Success! Journey confirmed.`);
+                    window.location.href = '/my-tickets';
+                } else {
+                    alert(` Error: ${resObj.body.error || 'An unknown error occurred.'}`);
+                }
+            });
+    }
+</script>
+</body>
+</html>

@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map; // Make sure to import Map!
 
 @RestController
 @RequestMapping("/api/admin/trains")
@@ -58,23 +59,25 @@ public class TrainAdminController {
             trainService.markTrainAsDelayed(trainId);
             return ResponseEntity.ok("Train marked as delayed. Customers notified.");
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
+            // FIXED: Send errors as JSON Maps
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
 
-    // --- NEW ENDPOINT: View all bookings for a specific train ---
     @GetMapping("/{trainId}/bookings")
     public ResponseEntity<?> getBookingsForTrain(@PathVariable Long trainId) {
         Train train = trainRepository.findById(trainId).orElse(null);
 
         if (train == null) {
-            return ResponseEntity.badRequest().body("Train not found.");
+            // FIXED: Send missing train error as JSON
+            return ResponseEntity.badRequest().body(Map.of("error", "Train not found."));
         }
 
         List<Booking> trainBookings = bookingRepository.findByRouteTrain(train);
 
         if (trainBookings.isEmpty()) {
-            return ResponseEntity.ok("No bookings found for this train.");
+            // FIXED: Send zero-bookings alert as JSON so the frontend doesn't crash
+            return ResponseEntity.ok(Map.of("message", "No bookings found for this train."));
         }
 
         return ResponseEntity.ok(trainBookings);

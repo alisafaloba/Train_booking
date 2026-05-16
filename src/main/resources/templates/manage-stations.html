@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Manage Hubs</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-danger shadow mb-4">
+    <div class="container">
+        <a class="navbar-brand" href="/admin/dashboard">← Back to Admin Console</a>
+    </div>
+</nav>
+
+<div class="container">
+    <div class="row g-4">
+        <!-- Add Hub Form -->
+        <div class="col-md-4">
+            <div class="card p-4 shadow-sm">
+                <h4 class="mb-3">Add Terminal Node</h4>
+                <div class="mb-3">
+                    <label class="form-label">Station Name</label>
+                    <input type="text" id="stationName" class="form-control" placeholder="e.g. Grand Central">
+                </div>
+                <button class="btn btn-danger w-100" onclick="submitStation()">Register Terminal</button>
+            </div>
+        </div>
+
+        <!-- Hub Grid View -->
+        <div class="col-md-8">
+            <div class="card p-4 shadow-sm">
+                <h4 class="mb-3">Configured Registry Stations</h4>
+                <table class="table align-middle">
+                    <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Station Name</th>
+                        <th>Actions</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="st : ${stations}">
+                        <td th:text="${st.id}">1</td>
+                        <td th:text="${st.name}">Sample Hub</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-danger" th:onclick="'deleteStation(' + ${st.id} + ')'">Remove</button>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function submitStation() {
+        const name = document.getElementById('stationName').value;
+        fetch('/api/admin/stations', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: name })
+        }).then(res => {
+            if(res.ok) window.location.reload();
+            else alert("Action blocked. Station duplicate detected.");
+        });
+    }
+
+    function deleteStation(id) {
+        if(!confirm("Purge selected terminal node location?")) return;
+        fetch(`/api/admin/stations/${id}`, { method: 'DELETE' })
+            .then(() => window.location.reload());
+    }
+</script>
+</body>
+</html>
